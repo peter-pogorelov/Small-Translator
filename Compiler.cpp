@@ -105,7 +105,7 @@ namespace SmallTranslator
 		whileitself += cond;
 		whileitself += "cmp\t" + lastVar + "\t1\n";
 		FreeVariableIfTemp(lastVar);//we can use it in body
-		whileitself += "jnz\t" + markerEnd + "\n";
+		whileitself += "jle\t" + markerEnd + "\n";
 		whileitself += CompileBlock(wh->block);;
 		whileitself += "jmp\t" + markerStart + "\n";
 		whileitself += markerEnd + ":\n";
@@ -121,9 +121,9 @@ namespace SmallTranslator
 		std::string markerEnd = GenerateMarker();
 		CompileExpression(cond, co->condition, lastVar);
 		ifitself += cond;
-		ifitself += "cmp\t" + lastVar + "\t1\n";
+		ifitself += "cmp\t" + lastVar + "\t0\n";
 		FreeVariableIfTemp(lastVar);//it is not required anymore. we can use it in body.
-		ifitself += "jnz\t" + markerEnd + "\n";
+		ifitself += "jle\t" + markerEnd + "\n";
 		ifitself += CompileBlock(co->block);
 		if (co->elseNode != nullptr)
 		{
