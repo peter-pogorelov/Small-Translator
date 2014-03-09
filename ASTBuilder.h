@@ -6,6 +6,7 @@
 #define BITS_WHILE	1 << 0
 #define BITS_EXPR	1 << 1
 #define BITS_IF		1 << 2
+#define BITS_IO		1 << 3
 
 #include "Types.h"
 
@@ -27,15 +28,17 @@ namespace SmallTranslator
 		Block* BuildAST();
 		Block* Build(int& params, int bits = 0);
 		bool BuildDecl();
+		In* BuildIn();
+		Out* BuildOut();
 		While* BuildWhile();
 		If* BuildIf();
-		Expression* BuildExpression(unsigned char bits, std::string& prevToken = std::string());
+		Expression* BuildExpression(unsigned char bits, bool &enumend, std::string& prevToken = std::string());
 		
 		std::string GetNextToken();
 
 	private:
 		SymbolTable tbl;
 		char * str;
-		const char* keys = "+-*/%=<>!;";
+		const char* keys = "+-*/%=<>!;(),";
 	};
 }

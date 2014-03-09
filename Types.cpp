@@ -22,6 +22,10 @@ namespace SmallTranslator
 			return true;
 		if(token == "or")
 			return true;
+		if(token == "in")
+			return true;
+		if(token == "out")
+			return true;
 		return false;
 	}
 
@@ -33,5 +37,16 @@ namespace SmallTranslator
 		}
 
 		return false;
+	}
+
+	bool IsNumber(std::string& str)
+	{
+		for (auto&c : str)
+		{
+			if (!isdigit(c))
+				return false;
+		}
+
+		return true;
 	}
 }

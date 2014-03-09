@@ -1,0 +1,10 @@
+decl a b c d;
+
+in a+b*c/d, b, c;
+
+if (((a)) + b) then
+	b = c - a * 3;
+	c = b + a;
+else
+	b = a - c * 3;
+end

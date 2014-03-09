@@ -26,8 +26,9 @@ namespace SmallTranslator
 			LogicGreatherEqual = 3,
 			LogicLessEqual =3,
 			LogicEqual = 3,
-			LogicNotEqual = 3
+			LogicNotEqual = 3,
 			
+			Bracket = 6
 		};
 	}
 

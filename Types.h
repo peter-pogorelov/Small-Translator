@@ -13,11 +13,14 @@ namespace SmallTranslator
 		Expression,
 		Block,
 		While,
-		If
+		If,
+		In,
+		Out
 	};
 
 	bool IsKeyWord(std::string& token);
 	bool IsName(std::string& str);
+	bool IsNumber(std::string& str);
 
 	class BasicUnit
 	{
@@ -111,5 +114,32 @@ namespace SmallTranslator
 		Block* block;
 		Block* elseNode;
 		Expression* condition;
+	};
+
+	class In : public BasicUnit
+	{
+	public:
+		In(){}
+		virtual ~In(){}
+		virtual UnitType GetType()
+		{
+			return UnitType::In;
+		}
+
+	public:
+		std::vector<Expression*> expressions;
+	};
+
+	class Out : public BasicUnit
+	{
+	public:
+		Out(){}
+		virtual ~Out(){}
+		virtual UnitType GetType()
+		{
+			return UnitType::Out;
+		}
+	public:
+		std::vector<Expression*> expressions;
 	};
 }

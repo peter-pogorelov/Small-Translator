@@ -21,10 +21,10 @@ namespace SmallTranslator
 		std::string CompileBlock(Block* block);
 		std::string CompileWhile(While* wh);
 		std::string CompileIf(If* co);
+		std::string CompileIn(In* incommand);
+		std::string CompileOut(Out* outcommand);
 
 		bool CompileExpression(std::string& asmc, Expression* expr, std::string& lastVar = std::string()); //lastVar is required for conditions.
-
-		bool IsNumber(std::string& str);
 
 		std::string GetNextExprToken(Expression* expr);
 

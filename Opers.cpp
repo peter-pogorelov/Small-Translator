@@ -61,6 +61,9 @@ namespace SmallTranslator
 		dict["and"].func = std::bind(ArithmeticalFunction, "and", _1, _2, _3);
 		dict["or"] = { Priority::ArithmOr, OperatorType::Arithmetic };
 		dict["or"].func = std::bind(ArithmeticalFunction, "or", _1, _2, _3);
+
+		dict["("] = { Priority::Bracket, OperatorType::Arithmetic };
+		dict[")"] = { Priority::Bracket, OperatorType::Arithmetic };
 	}
 
 	Operators* Operators::Inst()

@@ -29,8 +29,8 @@ namespace SmallTranslator
 		auto block = new Block();
 
 		auto t = GetNextToken();
-		bool b = bits & IF_STMT;
-		while ((t != "end" && !b) || (b && t != "else"))
+		bool bi = bits & IF_STMT;
+		while (!(t == "end" || bi && t == "else"))
 		{
 
 			if (t == "decl")
@@ -45,13 +45,22 @@ namespace SmallTranslator
 			{
 				block->units.push_back(BuildIf());
 			}
+			else if (t == "in")
+			{
+				block->units.push_back(BuildIn());
+			}
+			else if (t == "out")
+			{
+				block->units.push_back(BuildOut());
+			}
 			else if (t.empty())
 			{
 				return block;
 			}
 			else
 			{
-				block->units.push_back(BuildExpression(BITS_EXPR, t));
+				bool notused;
+				block->units.push_back(BuildExpression(BITS_EXPR, notused, t));
 			}
 
 			t = GetNextToken();
@@ -85,12 +94,44 @@ namespace SmallTranslator
 		}
 	}
 
+	In* AstBuilder::BuildIn()
+	{
+		bool endofenum;
+		auto incommand = new In();
+		Expression* next = BuildExpression(BITS_IO, endofenum);
+		incommand->expressions.push_back(next);
+
+		while (!endofenum)
+		{
+			next = BuildExpression(BITS_IO, endofenum);
+			incommand->expressions.push_back(next);
+		}
+
+		return incommand;
+	}
+
+	Out* AstBuilder::BuildOut()
+	{
+		bool endofenum;
+		auto outcommand = new Out();
+		Expression* next = BuildExpression(BITS_IO, endofenum);
+
+		while (!endofenum)
+		{
+			outcommand->expressions.push_back(next);
+			next = BuildExpression(BITS_IO, endofenum);
+		}
+
+		return outcommand;
+	}
+
 	While* AstBuilder::BuildWhile()
 	{
 		auto cycle = new While();
 		int params;
+		bool notused;
 
-		cycle->condition = BuildExpression(BITS_WHILE);
+		cycle->condition = BuildExpression(BITS_WHILE, notused);
 		cycle->block = Build(params);
 
 		return cycle;
@@ -100,8 +141,9 @@ namespace SmallTranslator
 	{
 		auto cond = new If();
 		int params;
+		bool notused;
 
-		cond->condition = BuildExpression(BITS_IF);
+		cond->condition = BuildExpression(BITS_IF, notused);
 		cond->block = Build(params, IF_STMT);
 		if (params & ELSE_NODE)
 		{
@@ -111,7 +153,7 @@ namespace SmallTranslator
 		return cond;
 	}
 
-	Expression* AstBuilder::BuildExpression(unsigned char bits, std::string& prevToken)
+	Expression* AstBuilder::BuildExpression(unsigned char bits, bool& enumend, std::string& prevToken)
 	{
 		auto expr = new Expression();
 		std::string t;
@@ -121,11 +163,13 @@ namespace SmallTranslator
 		else
 			t = GetNextToken();
 
-		while ((bits & BITS_WHILE && t != "do") || (bits & BITS_EXPR && t != ";") || (bits & BITS_IF && t != "then"))
+		while ((bits & BITS_WHILE && t != "do") || (bits & BITS_EXPR && t != ";") || (bits & BITS_IF && t != "then") || (bits & BITS_IO && t != "," && t != ";"))
 		{
 			expr->expression.push_back(t);
 			t = GetNextToken();
 		}
+
+		enumend = bits & BITS_IO && t == ";";
 
 		return expr;
 	}
