@@ -32,8 +32,12 @@ void main()
 
 	if (!code.empty())
 	{
+		std::ofstream file("out.txt", std::ios::out);
 		SmallTranslator::Compiler comp(const_cast<char*>(code.c_str()));
-		std::cout << comp.Compile();
+		std::string result = comp.Compile();
+		file << result;
+		std::cout << result;
+		file.close();
 	}
 	
 

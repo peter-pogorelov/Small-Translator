@@ -1,0 +1,40 @@
+jmp	_mrk2
+alloc	a	0
+alloc	b	0
+alloc	c	0
+alloc	d	0
+alloc	_tmp0	0
+alloc	_tmp1	0
+alloc	_tmp2	0
+_mrk2:
+
+mov	_tmp0	b
+mul	_tmp0	c
+mov	_tmp1	_tmp0
+div	_tmp1	d
+mov	_tmp0	a
+add	_tmp0	_tmp1
+in	_tmp0
+in	b
+in	c
+
+mov	_tmp1	a
+add	_tmp1	b
+cmp	_tmp1	1
+jnz	_mrk0
+mov	_tmp1	a
+mul	_tmp1	3
+mov	_tmp2	c
+sub	_tmp2	_tmp1
+mov	b	_tmp2
+mov	_tmp1	b
+add	_tmp1	a
+mov	c	_tmp1
+jmp	_mrk1
+_mrk0:
+mov	_tmp1	c
+mul	_tmp1	3
+mov	_tmp2	a
+sub	_tmp2	_tmp1
+mov	b	_tmp2
+_mrk1:
