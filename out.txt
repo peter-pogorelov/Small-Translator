@@ -1,40 +1,44 @@
-jmp	_mrk2
+jmp	_mrk0
 alloc	a	0
 alloc	b	0
 alloc	c	0
 alloc	d	0
 alloc	_tmp0	0
 alloc	_tmp1	0
-alloc	_tmp2	0
-_mrk2:
+alloc	_arg0	0
+alloc	_arg1	0
+DoSomething:
+pop	_arg0
+pop	_arg1
 
-mov	_tmp0	b
-mul	_tmp0	c
-mov	_tmp1	_tmp0
-div	_tmp1	d
-mov	_tmp0	a
-add	_tmp0	_tmp1
-in	_tmp0
-in	b
-in	c
+mov	_tmp0	_arg0
+cmp	_tmp0	_arg1
+mov	_tmp0	rel
+cmp	_tmp0	0
+jle	_mrk1
 
-mov	_tmp1	a
-add	_tmp1	b
-cmp	_tmp1	1
-jnz	_mrk0
-mov	_tmp1	a
-mul	_tmp1	3
-mov	_tmp2	c
-sub	_tmp2	_tmp1
-mov	b	_tmp2
-mov	_tmp1	b
-add	_tmp1	a
-mov	c	_tmp1
-jmp	_mrk1
-_mrk0:
-mov	_tmp1	c
-mul	_tmp1	3
-mov	_tmp2	a
-sub	_tmp2	_tmp1
-mov	b	_tmp2
+out	_arg0
+jmp	_mrk2
 _mrk1:
+
+out	_arg1
+_mrk2:
+mov	_tmp0	_arg0
+add	_tmp0	_arg1
+push	_tmp0
+ret
+ret
+_mrk0:
+mov	_tmp0	30
+mul	_tmp0	5
+mov	_tmp1	10
+add	_tmp1	_tmp0
+push	_tmp1
+push	20
+call	DoSomething
+pop	_tmp0
+mov	_tmp1	5
+mul	_tmp1	_tmp0
+mov	_tmp0	_tmp1
+add	_tmp0	10
+mov	c	_tmp0

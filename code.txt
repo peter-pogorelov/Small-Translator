@@ -1,10 +1,14 @@
 decl a b c d;
 
-in a+b*c/d, b, c;
+func DoSomething[a b]
+	if a < b then
+		out a;
+	else
+		out b;
+	end
+	
+	return a + b;
+end
 
-if (((a)) + b) then
-	b = c - a * 3;
-	c = b + a;
-else
-	b = a - c * 3;
+c = 5 * DoSomething[10+30*5, 20] + 10;
 end

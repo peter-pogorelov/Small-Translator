@@ -5,7 +5,7 @@
 	{\
 		if (IsName(a))\
 		{\
-			if (!ast.GetTable().Exist(a))\
+			if (!ast->GetTable().Exist(a) && !ast->IsFunction(a))\
 				return false;\
 		}\
 		else if (!IsNumber(a))\
@@ -19,27 +19,63 @@
 		op = tempOp;\
 	}\
 
+#define INTERCEPT_CALL(a)\
+	if (ast->IsFunction(a))\
+	{\
+		if (GetNextExprToken(expr) == "[")\
+		{\
+			auto var = a;\
+			do\
+			{\
+				std::string param; \
+				auto temp = op; \
+				op = nullptr; \
+				CompileExpression(asmc, expr, param);\
+				op = temp; \
+				asmc += "push\t" + param + "\n"; \
+				FreeVariableIfTemp(param);\
+				token = GetNextExprToken(expr); \
+			} while (token != "]"); \
+			a = var; \
+			asmc += "call\t" + b + "\n"; \
+			if (!ast->funcs[a]->noreturn)\
+			{\
+				a = GenerateNewVar(); \
+				asmc += "pop\t" + a + "\n"; \
+			}\
+		}\
+		else\
+		{\
+				return false; \
+		}\
+	}\
+
 namespace SmallTranslator
 {
 	Compiler::Compiler(char* code) :
 		code(code)
 	{
 		result = std::string();
-		ast = AstBuilder(code);
+		ast = new AstBuilder(code);
 	}
 
 	Compiler::~Compiler()
 	{
 		Operators::Inst()->Release();
+		delete ast;
 	}
 
 	std::string Compiler::Compile()
 	{
-		auto a = ast.BuildAST();
-		auto code = CompileBlock(a);
+		auto a = ast->BuildAST();
+		if (a == nullptr)
+		{
+			return ast->GetLastError();
+		}
 
 		std::string body;
-		SymbolTable &tbl = ast.GetTable();
+		std::string mainblock = CompileBlock(a);
+		SymbolTable &tbl = ast->GetTable();
 		if (tbl.vars.size() > 0)
 		{
 			std::string marker = GenerateMarker();
@@ -48,17 +84,17 @@ namespace SmallTranslator
 			{
 				body += "alloc\t" + i + "\t0\n";
 			}
+			body += CompileFunctions();
 			body += marker + ":\n";
 		}
 
-		body += code;
+		body += mainblock;
 		delete a;
 		return body;
 	}
 
 	std::string Compiler::CompileBlock(Block* block)
 	{
-		std::string allocs;
 		std::string body;
 
 		for (auto &i : block->units)
@@ -84,12 +120,54 @@ namespace SmallTranslator
 			case UnitType::Out:
 				body += NL + CompileOut((Out*)i);
 				break;
+			case UnitType::Return:
+				body += CompileReturn((Return*)i);
+				break;
 			default:
 				break;
 			}
 		}
 
 		return body;
+	}
+
+	std::string Compiler::CompileFunctions()
+	{
+		std::string result;
+		for (auto&i : ast->funcs)//first of all we need to allocate memory for all the arguments of all the functions
+		{
+			for (auto&j : i.second->renames)
+			{
+				ast->GetTable().Add(j.second);//important for future checking in BuildExpression
+				result = result + "alloc\t" + j.second + "\t0\n";
+			}
+		}
+
+		for (auto&i : ast->funcs)
+		{
+			result += i.second->name + ":\n";
+			for (auto&j : i.second->renames)
+			{
+				result += "pop\t" + j.second + "\n";
+			}
+			result += CompileBlock(i.second->block);
+			result += "ret\n";
+		}
+
+		return result;
+	}
+
+	std::string Compiler::CompileReturn(Return* ret)
+	{
+		std::string retcode;
+		std::string code;
+		std::string lastVal;
+		CompileExpression(code, ret->expr, lastVal);
+		retcode += code;
+		retcode += "push\t" + lastVal + "\n";
+		retcode += "ret\n";
+
+		return retcode;
 	}
 
 	std::string Compiler::CompileWhile(While* wh)
@@ -173,7 +251,7 @@ namespace SmallTranslator
 				if (CompileExpression(commandcode, i, lastVar))
 				{
 					result += commandcode;
-					result += "in\t" + lastVar + "\n";
+					result += "out\t" + lastVar + "\n";
 				}
 			}
 		}
@@ -193,12 +271,21 @@ namespace SmallTranslator
 		{
 			a = GetNextExprToken(expr);
 			INTERCEPT_OPERAND(a);
-			op = Operators::Inst()->Get(GetNextExprToken(expr));
+			INTERCEPT_CALL(a);
 
 			if(a != "(")
 				lastVar = a;
 			else
 				a = lastVar;
+
+			std::string token = GetNextExprToken(expr);
+			if (token == "," || token == "]")
+			{
+				GoBack();
+				return true;
+			}
+
+			op = Operators::Inst()->Get(token);
 		}
 		else
 		{
@@ -207,8 +294,13 @@ namespace SmallTranslator
 
 		b = GetNextExprToken(expr);
 		INTERCEPT_OPERAND(b);
+		INTERCEPT_CALL(b);
 
 		token = GetNextExprToken(expr);
+		if (token == "," || token == "]")
+		{
+			GoBack();
+		}
 		nextOp = Operators::Inst()->Get(token);
 
 		if (nextOp && token != ")")
@@ -230,7 +322,6 @@ namespace SmallTranslator
 			case OperatorType::Arithmetic:
 			{
 				tempVar = GenerateNewVar();
-				ast.GetTable().Add(tempVar);//same here
 
 				asmc += op->func(tempVar, a, b);
 				FreeVariableIfTemp(b);//if b is temp and we assigning left value to temp, then b wont be used anymore and we can redefine it.
@@ -248,7 +339,6 @@ namespace SmallTranslator
 			case OperatorType::Logic:
 			{
 				tempVar = GenerateNewVar();
-				ast.GetTable().Add(tempVar);//Do not need to check whenever temp value is already exists because it checks it itself
 
 				asmc += op->func(tempVar, a, b);
 				FreeVariableIfTemp(b);//if b is temp and we assigning left value to temp, then b wont be used anymore and we can redefine it.
@@ -278,7 +368,6 @@ namespace SmallTranslator
 	std::string Compiler::GetNextExprToken(Expression* expr)
 	{
 		static Expression* ex = nullptr;
-		static size_t it = 0;
 
 		if (ex != expr && expr != nullptr)
 		{
@@ -290,6 +379,11 @@ namespace SmallTranslator
 			return ex->expression.at(it++);
 
 		return "";
+	}
+
+	void Compiler::GoBack()
+	{
+		--it;
 	}
 
 	void Compiler::FreeVariableIfTemp(std::string& var)
@@ -327,6 +421,7 @@ namespace SmallTranslator
 		}
 
 		strm << "_tmp" << id;
+		ast->GetTable().Add(strm.str());
 		return strm.str();
 	}
 

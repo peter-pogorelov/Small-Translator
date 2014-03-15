@@ -26,12 +26,18 @@ namespace SmallTranslator
 			return true;
 		if(token == "out")
 			return true;
+		if(token == "void")
+			return true;
+		if(token == "func")
+			return true;
+		if(token == "return")
+			return true;
 		return false;
 	}
 
 	bool IsName(std::string& str)
 	{
-		if (isalpha(str[0]) && !IsKeyWord(str))
+		if (isalpha(str[0]) && !IsKeyWord(str) || str[0] == '_')
 		{
 			return true;
 		}

@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "SymbolTable.h"
 
@@ -15,7 +16,9 @@ namespace SmallTranslator
 		While,
 		If,
 		In,
-		Out
+		Out,
+		Function,
+		Return
 	};
 
 	bool IsKeyWord(std::string& token);
@@ -120,7 +123,14 @@ namespace SmallTranslator
 	{
 	public:
 		In(){}
-		virtual ~In(){}
+		virtual ~In()
+		{
+			for (auto&i : expressions)
+			{
+				delete i;
+			}
+		}
+
 		virtual UnitType GetType()
 		{
 			return UnitType::In;
@@ -134,12 +144,55 @@ namespace SmallTranslator
 	{
 	public:
 		Out(){}
-		virtual ~Out(){}
+		virtual ~Out()
+		{
+			for (auto&i : expressions)
+			{
+				delete i;
+			}
+		}
 		virtual UnitType GetType()
 		{
 			return UnitType::Out;
 		}
 	public:
 		std::vector<Expression*> expressions;
+	};
+
+	class Function : public BasicUnit
+	{
+	public:
+		Function(){}
+		virtual ~Function()
+		{
+			delete block;
+		}
+
+		virtual UnitType GetType()
+		{
+			return UnitType::Function;
+		}
+	public:
+		std::unordered_map<std::string, std::string> renames;
+		std::string name;
+		bool noreturn;
+		Block* block;
+	};
+	
+	class Return : public BasicUnit
+	{
+	public:
+		Return(){};
+		virtual ~Return()
+		{
+			delete expr;
+		}
+
+		virtual UnitType GetType()
+		{
+			return UnitType::Return;
+		}
+	public:
+		Expression* expr;
 	};
 }

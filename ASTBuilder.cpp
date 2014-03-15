@@ -2,14 +2,35 @@
 
 namespace SmallTranslator
 {
-	AstBuilder::AstBuilder() :
-		str(nullptr)
+	AstBuilder::AstBuilder()
 	{
+		ownerFunc = nullptr;
+		str = nullptr;
+		argCount = 0;
+		lineCount = 1;
+		errorstrm = std::stringstream();
 	}
 
-	AstBuilder::AstBuilder(char* code) :
-		str(code)
+	AstBuilder::AstBuilder(char* code)
 	{
+		ownerFunc = nullptr;
+		str = code;
+		argCount = 0;
+		lineCount = 1;
+		errorstrm = std::stringstream();
+	}
+
+	AstBuilder::~AstBuilder()
+	{
+		for (auto&i : funcs)
+		{
+			delete i.second;
+		}
+	}
+
+	bool AstBuilder::IsFunction(std::string& name)
+	{
+		return funcs.find(name) != funcs.end();
 	}
 
 	SymbolTable& AstBuilder::GetTable()
@@ -23,46 +44,66 @@ namespace SmallTranslator
 		return Build(params);
 	}
 
-	Block* AstBuilder::Build(int &params, int bits)
+	Block* AstBuilder::Build(int &params, unsigned int bits)
 	{
 		params = 0;
 		auto block = new Block();
 
 		auto t = GetNextToken();
 		bool bi = bits & IF_STMT;
+		BasicUnit* unit = nullptr;
 		while (!(t == "end" || bi && t == "else"))
 		{
-
 			if (t == "decl")
 			{
 				BuildDecl();
 			}
 			else if (t == "while")
 			{
-				block->units.push_back(BuildWhile());
+				unit = BuildWhile();
 			}
 			else if (t == "if")
 			{
-				block->units.push_back(BuildIf());
+				unit = BuildIf();
 			}
 			else if (t == "in")
 			{
-				block->units.push_back(BuildIn());
+				unit = BuildIn();
 			}
 			else if (t == "out")
 			{
-				block->units.push_back(BuildOut());
+				unit = BuildOut();
 			}
-			else if (t.empty())
+			else if (t == "func")
 			{
-				return block;
+				BuildFunction();
+			}
+			else if (t == "return")
+			{
+				unit = BuildReturn();
+			}
+			else if (t.empty()) // error
+			{
+				LOG_ERROR("Unexpected block ending.");
 			}
 			else
 			{
 				bool notused;
 				block->units.push_back(BuildExpression(BITS_EXPR, notused, t));
 			}
+			
+			if (!errorstrm.str().empty())
+			{
+				delete block;
+				return nullptr;
+			}
 
+			if (unit)
+			{
+				block->units.push_back(unit);
+			}
+
+			unit = nullptr;
 			t = GetNextToken();
 		}
 
@@ -90,7 +131,94 @@ namespace SmallTranslator
 		}
 		else
 		{
+			LOG_ERROR("Invalid decl using.");
 			return false;
+		}
+	}
+
+	bool AstBuilder::BuildFunction()
+	{
+		int notused;
+		auto func = new Function();
+		auto token = GetNextToken();
+
+		if (token == "void")
+		{
+			func->noreturn = true;
+			token = GetNextToken();
+		}
+		else
+		{
+			func->noreturn = false;
+		}
+
+		if (!IsName(token))
+		{
+			LOG_ERROR("Invalid function name.");
+			delete func;
+			return false;
+		}
+
+		func->name = token;
+
+		if (GetNextToken() == "[")
+		{
+			token = GetNextToken();
+			while (token != "]")
+			{
+				if (IsName(token))
+				{
+					func->renames[token] = GenerateArgument();
+					token = GetNextToken();
+				}
+				else
+				{
+					LOG_ERROR("Unexpected stuff in argument list.");
+					delete func;
+					return false;
+				}
+			}
+
+			ResetGenerator();
+		}
+		else
+		{
+			LOG_ERROR("Invalid signature of function '" << func->name << "'.");
+			delete func;
+			return false;
+		}
+
+		auto temp = ownerFunc;//save old value (there may be recursion in function definitions.
+		ownerFunc = func;
+		func->block = Build(notused);
+		funcs[func->name] = func;
+		ownerFunc = temp;//ending of parsing function
+		return true;
+	}
+
+	Return* AstBuilder::BuildReturn()
+	{
+		if (ownerFunc && !ownerFunc->noreturn)
+		{
+			auto ret = new Return();
+			bool notused;
+			Expression* expr = BuildExpression(BITS_EXPR, notused);
+			if (expr->expression.size() != 0)
+			{
+				ret->expr = expr;
+			}
+			else
+			{
+				LOG_ERROR("Empty 'return' command.");
+				delete ret;
+				return nullptr;
+			}
+
+			return ret;
+		}
+		else
+		{
+			LOG_ERROR("Unexpected 'return' command.");
 		}
 	}
 
@@ -99,12 +227,22 @@ namespace SmallTranslator
 		bool endofenum;
 		auto incommand = new In();
 		Expression* next = BuildExpression(BITS_IO, endofenum);
-		incommand->expressions.push_back(next);
 
-		while (!endofenum)
+		if (next->expression.size() != 0)
 		{
-			next = BuildExpression(BITS_IO, endofenum);
 			incommand->expressions.push_back(next);
+
+			while (!endofenum)
+			{
+				next = BuildExpression(BITS_IO, endofenum);
+				incommand->expressions.push_back(next);
+			}
+		}
+		else
+		{
+			LOG_ERROR("Empty 'out' command.");
+			delete incommand;
+			return nullptr;
 		}
 
 		return incommand;
@@ -116,10 +254,21 @@ namespace SmallTranslator
 		auto outcommand = new Out();
 		Expression* next = BuildExpression(BITS_IO, endofenum);
 
-		while (!endofenum)
+		if (next->expression.size() != 0)
 		{
 			outcommand->expressions.push_back(next);
-			next = BuildExpression(BITS_IO, endofenum);
+
+			while (!endofenum)
+			{
+				next = BuildExpression(BITS_IO, endofenum);
+				outcommand->expressions.push_back(next);
+			}
+		}
+		else
+		{
+			LOG_ERROR("Empty 'out' command.");
+			delete outcommand;
+			return nullptr;
 		}
 
 		return outcommand;
@@ -165,6 +314,12 @@ namespace SmallTranslator
 
 		while ((bits & BITS_WHILE && t != "do") || (bits & BITS_EXPR && t != ";") || (bits & BITS_IF && t != "then") || (bits & BITS_IO && t != "," && t != ";"))
 		{
+			if (IsName(t) && ownerFunc != nullptr) //replace name of function argument used in body to a special generated name
+			{
+				auto& renames = ownerFunc->renames;
+				if(renames.find(t) != renames.end())
+					t = renames[t];
+			}
 			expr->expression.push_back(t);
 			t = GetNextToken();
 		}
@@ -174,10 +329,34 @@ namespace SmallTranslator
 		return expr;
 	}
 
+	std::string AstBuilder::GenerateArgument()
+	{
+		std::stringstream strm;
+		strm << "_arg" << argCount++;
+		return strm.str();
+	}
+
+	void AstBuilder::ResetGenerator()
+	{
+		argCount = 0;
+	}
+
+	std::string AstBuilder::GetLastError()
+	{
+		return errorstrm.str();
+	}
+
 	std::string AstBuilder::GetNextToken()
 	{
 		std::string res;
-		while (isspace(*str)) ++str;
+		while (isspace(*str))
+		{
+			if(*str == '\n')
+				lineCount++;
+
+			++str;
+		}
+
 		if (isdigit(*str))
 		{
 			while (isdigit(*str))

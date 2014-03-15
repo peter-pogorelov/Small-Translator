@@ -23,17 +23,21 @@ namespace SmallTranslator
 		std::string CompileIf(If* co);
 		std::string CompileIn(In* incommand);
 		std::string CompileOut(Out* outcommand);
+		std::string CompileReturn(Return* ret);
+		std::string CompileFunctions();
 
 		bool CompileExpression(std::string& asmc, Expression* expr, std::string& lastVar = std::string()); //lastVar is required for conditions.
 
 		std::string GetNextExprToken(Expression* expr);
+		void GoBack();
 
 		void FreeVariableIfTemp(std::string& var);
 		std::string GenerateNewVar();
 		std::string GenerateMarker();
 
 	private:
-		AstBuilder ast;
+		size_t it;//for using in GetNextExprToken
+		AstBuilder* ast;
 		char* code;
 		std::vector<bool> usingTempVars; //contains temp variables that is in use or not
 		int locVarCount;
